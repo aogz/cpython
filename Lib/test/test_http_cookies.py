@@ -121,6 +121,12 @@ class CookieTests(unittest.TestCase):
         self.assertEqual(C.output(),
             'Set-Cookie: Customer="WILE_E_COYOTE"; HttpOnly; Secure')
 
+    def test_set_partitioned_attrs(self):
+        C = cookies.SimpleCookie('Customer="WILE_E_COYOTE"')
+        C['Customer']['partitioned'] = True
+        self.assertEqual(C.output(),
+            'Set-Cookie: Customer="WILE_E_COYOTE"; Partitioned')
+
     def test_samesite_attrs(self):
         samesite_values = ['Strict', 'Lax', 'strict', 'lax']
         for val in samesite_values:
@@ -158,6 +164,25 @@ class CookieTests(unittest.TestCase):
         # checks are testing backward compatibility for issue 16611.
         self.assertEqual(C['eggs']['httponly'], 'foo')
         self.assertEqual(C['eggs']['secure'], 'bar')
+
+    def test_partitioned_false_if_not_present(self):
+        C = cookies.SimpleCookie()
+        C.load('eggs=scrambled; Path=/bacon')
+        self.assertFalse(C['eggs']['partitioned'])
+
+    def test_partitioned_true_if_present(self):
+        C = cookies.SimpleCookie()
+        C.load('eggs=scrambled; partitioned; Path=/bacon')
+        self.assertTrue(C['eggs']['partitioned'])
+
+    def test_partitioned_true_if_have_value(self):
+        # This isn't really valid, but demonstrates what the current code
+        # is expected to do in this case.
+        C = cookies.SimpleCookie()
+        C.load('eggs=scrambled; partitioned=foo')
+        self.assertTrue(C['eggs']['partitioned'])
+        # Here is what it actually does; don't depend on this behavior.
+        self.assertEqual(C['eggs']['partitioned'], 'foo')
 
     def test_extra_spaces(self):
         C = cookies.SimpleCookie()
@@ -468,6 +493,14 @@ class MorselTests(unittest.TestCase):
         self.assertEqual(str(morsel),
                 'Set-Cookie: key=coded_val; Comment=foo; Domain=example.com; '
                 'HttpOnly; Max-Age=0; Path=/; Secure; Version=1')
+        morsel['partitioned'] = True
+        self.assertEqual(repr(morsel),
+                '<Morsel: key=coded_val; Comment=foo; Domain=example.com; '
+                'HttpOnly; Max-Age=0; Path=/; Secure; Version=1; Partitioned>')
+
+        self.assertEqual(str(morsel),
+                'Set-Cookie: key=coded_val; Comment=foo; Domain=example.com; '
+                'HttpOnly; Max-Age=0; Path=/; Secure; Version=1; Partitioned')
 
         morsel = cookies.Morsel()
         morsel.set('key', 'val', 'coded_val')
